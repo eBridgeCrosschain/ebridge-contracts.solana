@@ -1,0 +1,20 @@
+[toolchain]
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+bridge = "Gc6gUHfuf4sfS9DHtQXoLPtyKJnVbDWK1Xcqrcf7nWgV"
+multisig = "CNW4xWTtahYUCSZwdziDaKysN6ms7giod6RP9wZTewNk"
+token-pool = "69CgaMBksU7F5JM2SoRsSHURxmrvYCQqrT487aHMiRhz"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "Localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
