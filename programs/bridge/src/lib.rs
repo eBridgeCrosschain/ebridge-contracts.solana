@@ -133,9 +133,9 @@ pub mod bridge {
         let receipt_message = message.encode();
 
         let receipt_id_token: [u8; 32] = receipt_message[32..64].try_into().unwrap();
-        let receipt_id: String = receipt_id_token.iter().map(|byte| format!("{:02x}", byte)).collect();
+        let receipt_id_hex: String = receipt_id_token.iter().map(|byte| format!("{:02x}", byte)).collect();
         emit!(ReceiptCreated {
-            receipt_id: format!("{}.{}", receipt_id, receipt.count),
+            receipt_id: format!("{}.{}", receipt_id_hex, receipt.count),
             amount: amount,
             owner: ctx.accounts.sender.key(),
             symbol: message.symbol,
@@ -385,15 +385,14 @@ pub mod bridge {
         receipt_record.is_initialized = true;
         receipt_record.receipt_hash = receipt_hash;
 
-        let receipt_index: [u8; 32] = message[0..32].try_into().unwrap();
-        let receipt_index_hex: String = receipt_index.iter().map(|byte| format!("{:02x}", byte)).collect();
+        let receipt_index: u64 = u64::from_be_bytes(message[24..32].try_into().unwrap());
         let receipt_id_token: [u8; 32] = message[32..64].try_into().unwrap();
         let receipt_id_hex: String = receipt_id_token.iter().map(|byte| format!("{:02x}", byte)).collect();
         emit!(MessageForwarded {
             amount: token_mount.amount,
             address: ctx.accounts.user_token_account.key(),
             symbol: token_mount.symbol,
-            receipt_id: format!("{}.{}", receipt_id_hex, receipt_index_hex),
+            receipt_id: format!("{}.{}", receipt_id_hex, receipt_index),
             source_chain_id: source_chain_id,
         });
         
@@ -593,7 +592,7 @@ pub mod bridge {
                 bridge_config.cross_chainlist[index].contract_address = contract_address;
             } else {
                 require!(
-                    bridge_config.cross_chainlist.len() == MAX_CROSS_CHAIN_LIST_LEN,
+                    bridge_config.cross_chainlist.len() < MAX_CROSS_CHAIN_LIST_LEN,
                     BridgeError::Overflow
                 );
                 bridge_config.cross_chainlist.push(CrossChainInfo {
@@ -1296,10 +1295,14 @@ pub struct ReceiptMessage {
 
 impl ReceiptMessage {
     fn encode(&self) -> Vec<u8> {
+        let receipt_index_bytes = self.receipt_index.to_be_bytes();
+        let mut receipt_index_padded = [0u8; 32];
+        receipt_index_padded[24..32].copy_from_slice(&receipt_index_bytes);
+
         let receipt_id_token = self.generate_receipt_id_token();
         let receipt_hash = self.generate_receipt_hash(receipt_id_token);
         let hashes = [
-            self.hash_field(&self.receipt_index.to_be_bytes()),
+            receipt_index_padded,
             receipt_id_token,
             self.hash_field(&self.amount.to_be_bytes()),
             self.hash_field(&self.target_address),
@@ -1333,10 +1336,10 @@ impl ReceiptMessage {
         self.hash_field(&hashes.concat())
     }
 
-    fn generate_receipt_hash_extra(&self, receipt_id_token: [u8; 32], receipt_index_hash: [u8; 32]) -> [u8; 32] {
+    fn generate_receipt_hash_extra(&self, receipt_id_token: [u8; 32], receipt_index: u64) -> [u8; 32] {
         let receipt_id_hash = self.hash_field(&[
             receipt_id_token,
-            receipt_index_hash].concat()
+            self.hash_field(&receipt_index.to_be_bytes())].concat()
         );
         let hashes = [
             receipt_id_hash,
@@ -1364,7 +1367,7 @@ impl ReceiptMessageValidator {
         message: &Vec<u8>,
         receipt_message: &ReceiptMessage,
     ) -> bool {
-        let receipt_index_expected: [u8; 32] = message[0..32].try_into().unwrap();
+        let receipt_index_expected: u64 = u64::from_be_bytes(message[24..32].try_into().unwrap());
         let receipt_id_token_expected: [u8; 32] = message[32..64].try_into().unwrap();
         let amount_expected: [u8; 32] = message[64..96].try_into().unwrap();
         let target_address_expected: [u8; 32] = message[96..128].try_into().unwrap();
