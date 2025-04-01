@@ -141,6 +141,7 @@ pub mod bridge {
             symbol: message.symbol,
             target_address: target_address.clone(),
             target_chain_id: target_chain_id,
+            mint: ctx.accounts.mint.key(),
         });
 
         emit!(RequestSend {
@@ -243,6 +244,7 @@ pub mod bridge {
             symbol: NATIVE_TOKEN.to_string(),
             target_address: target_address.clone(),
             target_chain_id: target_chain_id,
+            mint: ctx.accounts.mint.key(),
         });
 
         emit!(RequestSend {
@@ -394,6 +396,7 @@ pub mod bridge {
             symbol: token_mount.symbol,
             receipt_id: format!("{}.{}", receipt_id_hex, receipt_index),
             source_chain_id: source_chain_id,
+            mint: ctx.accounts.mint.key(),
         });
         
         Ok(())
@@ -1435,6 +1438,7 @@ pub struct ReceiptCreated {
     pub symbol: String,
     pub target_address: String,
     pub target_chain_id: u16,
+    pub mint: Pubkey,
 }
 
 #[event]
@@ -1452,6 +1456,7 @@ pub struct MessageForwarded {
     pub symbol: String,
     pub receipt_id: String,
     pub source_chain_id: u16,
+    pub mint: Pubkey,
 }
 
 #[event]
