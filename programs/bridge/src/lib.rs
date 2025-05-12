@@ -628,7 +628,7 @@ pub mod bridge {
         Ok(())
     }
 
-    pub fn set_ramp_contract(ctx: Context<SetTokenPoolContract>, ramp_contract_address: Pubkey) -> Result<()> {
+    pub fn set_ramp_contract(ctx: Context<SetRampContract>, ramp_contract_address: Pubkey) -> Result<()> {
         require!(
             ctx.accounts.bridge_config.is_initialized,
             BridgeError::ContractNotInitialized

@@ -743,6 +743,8 @@ describe('bridge', () => {
     );
     console.log(`   ForwardMessage receiptRecordPDA: ${receiptRecordPDA}`);
 
+    const tokenBalanceInfo1 = await provider.connection.getTokenAccountBalance(userUsdcTokenAccount);
+      console.log(`   ForwardMessage before userUsdcTokenAccount balance:${tokenBalanceInfo1.value.uiAmount}`);
     await program.methods.forwardMessage(
       1,
       Array.from(receiptHashBuffer),
@@ -782,6 +784,9 @@ describe('bridge', () => {
     console.log(`   ForwardMessage usdcPoolTokenAccount balance:${tokenBalanceInfo.value.uiAmount}`);
     const balance = await provider.connection.getBalance(usdcPoolTokenAccount);
     console.log("   ForwardMessage usdcPoolTokenAccount SOL balance:", balance);
+
+    const tokenBalanceInfo2 = await provider.connection.getTokenAccountBalance(userUsdcTokenAccount);
+      console.log(`   ForwardMessage after userUsdcTokenAccount balance:${tokenBalanceInfo2.value.uiAmount}`);
 
     const receiptRecord = await program.account.receiptRecord.fetch(receiptRecordPDA);
     console.log(`   ForwardMessage1: ${receiptRecord.isInitialized},${receiptRecord.receiptHash}`);
@@ -854,6 +859,116 @@ describe('bridge', () => {
     const config = await program.account.bridgeConfig.fetch(bridgeConfigPDA);
     assert.isFalse(config.isContractPause);
     console.log(`   Restart: ${config.isContractPause}`);
+  });
+
+  it('SetPauseController', async () => {
+    const newController = Keypair.generate();
+    await program.methods.setPauseController(newController.publicKey)
+      .accounts({
+        bridgeConfig: bridgeConfigPDA,
+        admin: admin.publicKey,
+        systemProgram: SystemProgram.programId
+      })
+      .signers([admin.payer])
+      .rpc();
+
+    const config = await program.account.bridgeConfig.fetch(bridgeConfigPDA);
+    assert.equal(config.pauseController.toString(), newController.publicKey.toString());
+  });
+
+  it('RemoveToken', async () => {
+    const tokenRemoved = {
+      symbol: stringToFixedBytes("USDC", 16),
+      chainId: 1,
+    };
+
+    await program.methods.removeToken(tokenRemoved)
+      .accounts({ 
+        bridgeConfig: bridgeConfigPDA,
+        admin: admin.publicKey,
+        systemProgram: SystemProgram.programId
+      })
+      .signers([admin.payer])
+      .rpc();
+
+    const config = await program.account.bridgeConfig.fetch(bridgeConfigPDA);
+    console.log(`   RemoveToken length: ${config.tokenWhitelist.length}`);
+  });
+
+  it('SetTokenPoolContract', async () => {
+    const tokenPoolContract = Keypair.generate();
+    await program.methods.setTokenPoolContract(tokenPoolContract.publicKey)
+      .accounts({ 
+        bridgeConfig: bridgeConfigPDA,
+        admin: admin.publicKey,
+        systemProgram: SystemProgram.programId
+      })
+      .signers([admin.payer])
+      .rpc();
+
+    const config = await program.account.bridgeConfig.fetch(bridgeConfigPDA);
+    assert.equal(config.tokenPoolContract.toString(), tokenPoolContract.publicKey.toString());
+  });
+
+  it('SetRampContract', async () => {
+    const rampContract = Keypair.generate();
+    await program.methods.setRampContract(rampContract.publicKey)
+      .accounts({ 
+        bridgeConfig: bridgeConfigPDA,
+        admin: admin.publicKey,
+        systemProgram: SystemProgram.programId
+      })
+      .signers([admin.payer])
+      .rpc();
+
+    const config = await program.account.bridgeConfig.fetch(bridgeConfigPDA);
+    assert.equal(config.rampContract.toString(), rampContract.publicKey.toString());
+  });
+
+  it('SetMultisigContract', async () => {
+    const multisigContract = Keypair.generate();
+    await program.methods.setMultisigContract("new_multisig",multisigContract.publicKey)
+      .accounts({ 
+        bridgeConfig: bridgeConfigPDA,
+        admin: admin.publicKey,
+        systemProgram: SystemProgram.programId
+      })
+      .signers([admin.payer])
+      .rpc();
+
+    const config = await program.account.bridgeConfig.fetch(bridgeConfigPDA);
+    assert.equal(config.multisigContract.toString(), multisigContract.publicKey.toString());
+  });
+
+  it('SetAdmin', async () => {
+    const newAdmin = Keypair.generate();
+    await program.methods.setAdmin(newAdmin.publicKey)
+      .accounts({
+        bridgeConfig: bridgeConfigPDA,
+        admin: admin.publicKey,
+        systemProgram: SystemProgram.programId
+      })
+      .signers([admin.payer])
+      .rpc();
+
+    const config = await program.account.bridgeConfig.fetch(bridgeConfigPDA);
+    assert.equal(config.admin.toString(), newAdmin.publicKey.toString());
+  });
+
+  it('SetAdmin Invalid', async () => {
+    try {
+      await program.methods.setAdmin(Keypair.generate().publicKey)
+        .accounts({
+          bridgeConfig: bridgeConfigPDA,
+          admin: user.publicKey,
+          systemProgram: SystemProgram.programId
+        })
+        .signers([user])
+        .rpc();
+      assert.fail('Should throw error');
+    } catch (e) {
+      console.log(`   SetAdmin Invalid: ${e.message}`);
+    }
   });
 
 });
