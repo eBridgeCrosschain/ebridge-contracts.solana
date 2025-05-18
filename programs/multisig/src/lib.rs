@@ -4,6 +4,7 @@ use anchor_lang::solana_program::instruction::Instruction;
 use token_pool::cpi::accounts::SetAdmin as PoolSetAdmin;
 use token_pool::program::TokenPool;
 use token_pool::{self, PoolConfig};
+use std::collections::HashSet;
 
 declare_id!("CNW4xWTtahYUCSZwdziDaKysN6ms7giod6RP9wZTewNk");
 
@@ -73,6 +74,12 @@ pub mod multisig {
             MultisigError::InvalidOwners
         );
         
+        let owners_set: HashSet<_> = owners.iter().collect();
+        require!(
+            owners_set.len() == owners.len(),
+            MultisigError::DuplicateOwner
+        );
+        
         let multisig = &mut ctx.accounts.multisig;
         multisig.name = name;
         multisig.owners = owners;
@@ -104,6 +111,12 @@ pub mod multisig {
         require!(
             owners.len() >= 1 && owners.len() <= ctx.accounts.multisig.owners.len(), 
             MultisigError::InvalidOwners
+        );
+        
+        let owners_set: HashSet<_> = owners.iter().collect();
+        require!(
+            owners_set.len() == owners.len(),
+            MultisigError::DuplicateOwner
         );
         
         let multisig = &mut ctx.accounts.multisig;
@@ -164,6 +177,11 @@ pub mod multisig {
         require!(
             signer_index < proposal.signers.len(), 
             MultisigError::InvalidOwnerIndex
+        );
+        
+        require!(
+            !proposal.signers[signer_index],
+            MultisigError::AlreadyApproved
         );
         
         proposal.signers[signer_index] = true;
@@ -517,12 +535,18 @@ pub enum MultisigError {
 
     #[msg("Owners list cannot be empty")]
     InvalidOwners,
+    
+    #[msg("Duplicate owner")]
+    DuplicateOwner,
 
     #[msg("Invalid instructions")]
     InvalidInstructions,
 
     #[msg("Invalid owner index")]
     InvalidOwnerIndex,
+
+    #[msg("Proposal already approved")]
+    AlreadyApproved,
 
     #[msg("Proposal already executed")]
     AlreadyExecuted,
